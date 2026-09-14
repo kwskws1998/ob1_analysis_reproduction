@@ -25,6 +25,12 @@ python3.12 setup_environment.py
 The default worker count is `min(40, CPU count - 4)`. `--workers` changes only
 OB1 process concurrency, not the requested seeds or analysis settings.
 
+Before a parallel run, one short cache-only process builds and validates the
+OB1 frequency, lexicon, prediction, and inhibition files. This process enters
+no passage-reading loop and simulates zero readers. Immediately after cache
+validation, all seeds 0 through 99 are distributed across the requested worker
+count; with `--workers 40`, forty simulation processes therefore start together.
+
 Individual stages can be rerun as follows:
 
 ```bash

@@ -84,14 +84,87 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--vendor-src", type=Path, required=True)
     parser.add_argument("--runtime-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--seeds", required=True)
+    parser.add_argument("--seeds", default="")
     parser.add_argument("--n-trials", type=int, default=55)
     parser.add_argument(
         "--stimuli-filename",
         default="Provo_Corpus.csv",
     )
     parser.add_argument("--attention-skew", type=float)
+    parser.add_argument("--initialize-cache-only", action="store_true")
     return parser.parse_args()
+
+
+def build_global_parameters(
+    stimuli_path: Path,
+    n_trials: int,
+) -> dict:
+    """Build the frozen upstream OB1 execution configuration."""
+    return {
+        "task_to_run": "continuous_reading",
+        "stimuli_filepath": str(stimuli_path),
+        "stimuli_separator": "\t",
+        "language": "english",
+        "number_of_simulations": 1,
+        "n_trials": n_trials,
+        "prediction_flag": "",
+        "results_identifier": "",
+        "run_exp": True,
+        "analyze_results": False,
+        "results_filepath": "",
+        "parameters_filepath": "",
+        "eye_tracking_filepath": "",
+        "experiment_parameters_filepath": "",
+        "optimize": False,
+        "print_process": False,
+        "plotting": False,
+    }
+
+
+def capture_parameter_record(parameters) -> dict:
+    """Freeze the OB1 parameters relevant to trajectory provenance."""
+    return {name: getattr(parameters, name) for name in PARAMETER_NAMES}
+
+
+def initialize_runtime_cache(
+    upstream_simulation,
+    return_params,
+    global_parameters: dict,
+    attention_skew: float | None,
+    output_dir: Path,
+) -> None:
+    """Build upstream derived caches without simulating a virtual reader."""
+    np.random.seed(0)
+    random.seed(0)
+    torch.manual_seed(0)
+    parameters = return_params(global_parameters)
+    if attention_skew is not None:
+        parameters.attention_skew = float(attention_skew)
+    parameters.number_of_simulations = 0
+    started = time.perf_counter()
+    simulation_data = upstream_simulation.simulate_experiment(parameters)
+    elapsed = time.perf_counter() - started
+    if simulation_data:
+        raise RuntimeError("Cache-only OB1 initialization unexpectedly simulated data")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with (output_dir / "cache_initialization_manifest.json").open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        json.dump(
+            {
+                "mode": "cache_initialization_only",
+                "python_hash_seed": os.environ["PYTHONHASHSEED"],
+                "simulated_readers": 0,
+                "simulated_passages": 0,
+                "seconds": elapsed,
+                "parameters": capture_parameter_record(parameters),
+            },
+            handle,
+            indent=2,
+            sort_keys=True,
+        )
+        handle.write("\n")
 
 
 def main() -> None:
@@ -101,8 +174,10 @@ def main() -> None:
     runtime_dir = args.runtime_dir.resolve()
     output_dir = args.output_dir.resolve()
     seeds = [int(item) for item in args.seeds.split(",") if item]
-    if not seeds:
+    if not seeds and not args.initialize_cache_only:
         raise ValueError("No OB1 seeds were provided")
+    if seeds and args.initialize_cache_only:
+        raise ValueError("Cache-only OB1 initialization must not receive seeds")
     if os.environ.get("PYTHONHASHSEED") is None:
         raise RuntimeError("PYTHONHASHSEED must be fixed by the parent process")
     if args.attention_skew is not None and (
@@ -127,25 +202,20 @@ def main() -> None:
     stimuli_path = runtime_dir / "data/processed" / stimuli_filename
     if not stimuli_path.is_file():
         raise FileNotFoundError(stimuli_path)
-    global_parameters = {
-        "task_to_run": "continuous_reading",
-        "stimuli_filepath": str(stimuli_path),
-        "stimuli_separator": "\t",
-        "language": "english",
-        "number_of_simulations": 1,
-        "n_trials": args.n_trials,
-        "prediction_flag": "",
-        "results_identifier": "",
-        "run_exp": True,
-        "analyze_results": False,
-        "results_filepath": "",
-        "parameters_filepath": "",
-        "eye_tracking_filepath": "",
-        "experiment_parameters_filepath": "",
-        "optimize": False,
-        "print_process": False,
-        "plotting": False,
-    }
+    global_parameters = build_global_parameters(
+        stimuli_path,
+        args.n_trials,
+    )
+
+    if args.initialize_cache_only:
+        initialize_runtime_cache(
+            upstream_simulation,
+            return_params,
+            global_parameters,
+            args.attention_skew,
+            output_dir,
+        )
+        return
 
     all_records = []
     runtimes = []
@@ -160,9 +230,7 @@ def main() -> None:
         if parameters.prediction_flag:
             raise ValueError("The primary OB1 condition must disable predictability")
         if parameter_record is None:
-            parameter_record = {
-                name: getattr(parameters, name) for name in PARAMETER_NAMES
-            }
+            parameter_record = capture_parameter_record(parameters)
         started = time.perf_counter()
         simulation_data = upstream_simulation.simulate_experiment(parameters)
         runtimes.append(

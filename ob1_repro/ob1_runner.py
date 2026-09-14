@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import pickle
 import re
 import shutil
 import subprocess
@@ -58,6 +59,67 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def validate_derived_caches(runtime_dir: Path, stimulus_name: str) -> dict:
+    """Validate every OB1 cache needed before concurrent simulation starts."""
+    stimulus_name = validate_stimulus_name(stimulus_name)
+    processed_dir = runtime_dir.resolve() / "data/processed"
+    paths = {
+        filename: processed_dir / filename
+        for filename in derived_cache_filenames(stimulus_name)
+    }
+    for path in paths.values():
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        if path.stat().st_size == 0:
+            raise ValueError(f"OB1 derived cache is empty: {path}")
+
+    with paths["lexicon.pkl"].open("rb") as handle:
+        lexicon = pickle.load(handle)
+    frequency_name = f"frequency_map_{stimulus_name}_continuous_reading_english.json"
+    prediction_name = f"prediction_map_{stimulus_name}__continuous_reading_english.json"
+    with paths[frequency_name].open(encoding="utf-8") as handle:
+        frequency_map = json.load(handle)
+    with paths[prediction_name].open(encoding="utf-8") as handle:
+        prediction_map = json.load(handle)
+    with paths["inhibition_matrix_previous.pkl"].open("rb") as handle:
+        inhibition_matrix = pickle.load(handle)
+    with paths["inhibition_matrix_parameters_previous.pkl"].open("rb") as handle:
+        inhibition_parameters = pickle.load(handle)
+
+    if not isinstance(lexicon, list) or not lexicon:
+        raise ValueError("OB1 lexicon cache must be a nonempty list")
+    if not isinstance(frequency_map, dict) or not frequency_map:
+        raise ValueError("OB1 frequency cache must be a nonempty mapping")
+    if not isinstance(prediction_map, dict):
+        raise ValueError("OB1 prediction cache must be a mapping")
+    if not isinstance(inhibition_matrix, np.ndarray):
+        raise ValueError("OB1 inhibition cache must be a NumPy array")
+    expected_shape = (len(lexicon), len(lexicon))
+    if inhibition_matrix.shape != expected_shape:
+        raise ValueError(
+            "OB1 inhibition-cache shape differs from the lexicon: "
+            f"{inhibition_matrix.shape} versus {expected_shape}"
+        )
+    if not np.isfinite(inhibition_matrix).all():
+        raise ValueError("OB1 inhibition cache contains non-finite values")
+    if not isinstance(inhibition_parameters, str) or not inhibition_parameters:
+        raise ValueError("OB1 inhibition-parameter cache must be a nonempty string")
+
+    return {
+        "lexicon_entries": len(lexicon),
+        "frequency_entries": len(frequency_map),
+        "prediction_entries": len(prediction_map),
+        "inhibition_matrix_shape": list(inhibition_matrix.shape),
+        "files": {
+            filename: {
+                "bytes": path.stat().st_size,
+                "sha256": sha256_file(path),
+            }
+            for filename, path in paths.items()
+        },
+    }
 
 
 def transform_ob1_passage(
@@ -255,6 +317,96 @@ def prepare_ob1_runtime(
     }
 
 
+def initialize_ob1_cache(
+    runtime_dir: Path,
+    initialization_dir: Path,
+    n_trials: int,
+    python_hash_seed: int,
+    stimulus_name: str,
+    attention_skew: float | None,
+) -> dict:
+    """Initialize and validate derived OB1 caches without reading passages."""
+    stimulus_name = validate_stimulus_name(stimulus_name)
+    processed_dir = runtime_dir.resolve() / "data/processed"
+    cache_paths = [
+        processed_dir / filename for filename in derived_cache_filenames(stimulus_name)
+    ]
+    if all(path.is_file() for path in cache_paths):
+        cache_audit = validate_derived_caches(runtime_dir, stimulus_name)
+        return {
+            "mode": "reused_validated_cache",
+            **cache_audit,
+        }
+
+    for path in cache_paths:
+        if path.is_file():
+            path.unlink()
+    initialization_dir = initialization_dir.resolve()
+    initialization_dir.mkdir(parents=True, exist_ok=True)
+    print(
+        "Initializing OB1 derived caches in one process without simulating a reader",
+        flush=True,
+    )
+    command = [
+        sys.executable,
+        str(WORKER_PATH),
+        "--vendor-src",
+        str(VENDOR_ROOT / "src"),
+        "--runtime-dir",
+        str(runtime_dir.resolve()),
+        "--output-dir",
+        str(initialization_dir),
+        "--n-trials",
+        str(n_trials),
+        "--stimuli-filename",
+        f"{stimulus_name}.csv",
+        "--initialize-cache-only",
+    ]
+    if attention_skew is not None:
+        command.extend(["--attention-skew", str(float(attention_skew))])
+    subprocess.run(
+        command,
+        check=True,
+        env=ob1_worker_environment(python_hash_seed),
+    )
+
+    manifest_path = initialization_dir / "cache_initialization_manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(manifest_path)
+    with manifest_path.open(encoding="utf-8") as handle:
+        initialization_manifest = json.load(handle)
+    if initialization_manifest.get("mode") != "cache_initialization_only":
+        raise ValueError("Invalid OB1 cache-initialization mode")
+    if int(initialization_manifest.get("simulated_readers", -1)) != 0:
+        raise ValueError("OB1 cache initialization unexpectedly simulated a reader")
+    if int(initialization_manifest.get("simulated_passages", -1)) != 0:
+        raise ValueError("OB1 cache initialization unexpectedly read passages")
+    recorded_parameters = initialization_manifest.get("parameters", {})
+    recorded_skew = recorded_parameters.get("attention_skew")
+    if attention_skew is not None and (
+        recorded_skew is None
+        or not math.isclose(
+            float(recorded_skew),
+            float(attention_skew),
+            rel_tol=0.0,
+            abs_tol=1e-12,
+        )
+    ):
+        raise ValueError("OB1 cache initialization used the wrong attention skew")
+    cache_audit = validate_derived_caches(runtime_dir, stimulus_name)
+    print(
+        "OB1 cache-only initialization completed with zero simulated readers",
+        flush=True,
+    )
+    return {
+        "mode": "initialized_without_simulation",
+        "manifest_path": str(manifest_path),
+        "manifest_sha256": sha256_file(manifest_path),
+        "manifest": initialization_manifest,
+        **cache_audit,
+    }
+
+
 def run_ob1_subprocess(
     runtime_dir: Path,
     output_dir: Path,
@@ -293,34 +445,28 @@ def run_ob1_subprocess(
         )
         return
 
-    cache_ready = all(
-        (runtime_dir / "data/processed" / filename).is_file()
-        for filename in derived_cache_filenames(stimulus_name)
-    )
-    completed_chunks = []
-    remaining_seeds = list(seeds)
     worker_root = output_dir / "_parallel_workers"
     worker_root.mkdir(parents=True, exist_ok=True)
+    cache_initialization = initialize_ob1_cache(
+        runtime_dir,
+        worker_root / "cache_initialization",
+        n_trials,
+        python_hash_seed,
+        stimulus_name,
+        attention_skew,
+    )
 
-    if not cache_ready:
-        warmup_seed = remaining_seeds.pop(0)
-        warmup_dir = worker_root / "warmup"
-        run_ob1_worker(
-            runtime_dir,
-            warmup_dir,
-            [warmup_seed],
-            n_trials,
-            python_hash_seed,
-            stimulus_name,
-            attention_skew,
-        )
-        completed_chunks.append(([warmup_seed], warmup_dir))
-
-    chunks = split_seed_chunks(remaining_seeds, workers)
+    chunks = split_seed_chunks(list(seeds), workers)
     parallel_chunks = []
     for chunk_index, chunk in enumerate(chunks):
         chunk_dir = worker_root / f"worker_{chunk_index:03d}"
         parallel_chunks.append((chunk, chunk_dir))
+
+    print(
+        "OB1 derived caches validated; launching "
+        f"{len(parallel_chunks)} simulation workers for {len(seeds)} readers",
+        flush=True,
+    )
 
     with ThreadPoolExecutor(max_workers=len(parallel_chunks) or 1) as executor:
         futures = {
@@ -348,16 +494,16 @@ def run_ob1_subprocess(
                 flush=True,
             )
 
-    completed_chunks.extend(parallel_chunks)
     merge_ob1_worker_outputs(
         output_dir,
         seeds,
-        completed_chunks,
+        parallel_chunks,
         workers_requested=workers,
         python_hash_seed=python_hash_seed,
         n_trials=n_trials,
         stimulus_name=stimulus_name,
         requested_attention_skew=attention_skew,
+        cache_initialization=cache_initialization,
     )
 
 
@@ -434,6 +580,7 @@ def merge_ob1_worker_outputs(
     n_trials: int | None = None,
     stimulus_name: str = "Provo_Corpus",
     requested_attention_skew: float | None = None,
+    cache_initialization: dict | None = None,
 ) -> None:
     """Merge worker CSVs and manifests into the serial output contract."""
     stimulus_name = validate_stimulus_name(stimulus_name)
@@ -535,6 +682,7 @@ def merge_ob1_worker_outputs(
                 "worker_chunks": chunk_records,
                 "stimuli_filename": f"{stimulus_name}.csv",
                 "requested_attention_skew": requested_attention_skew,
+                "cache_initialization": cache_initialization,
             },
             handle,
             indent=2,
