@@ -1,0 +1,50 @@
+[
+  {
+    "checkpoint_id": "s01_acc075682_l115383_r177441",
+    "source_model": "Llama-3-8B",
+    "source_dataset": "OASST1",
+    "source_accuracy": 0.75682,
+    "sigma_left": 1.15383,
+    "sigma_right": 1.77441
+  },
+  {
+    "checkpoint_id": "s02_acc075434_l102529_r129073",
+    "source_model": "Llama-3-8B",
+    "source_dataset": "OASST1",
+    "source_accuracy": 0.75434,
+    "sigma_left": 1.02529,
+    "sigma_right": 1.29073
+  },
+  {
+    "checkpoint_id": "s03_acc073449_l164626_r290287",
+    "source_model": "Llama-3-8B",
+    "source_dataset": "OASST1",
+    "source_accuracy": 0.73449,
+    "sigma_left": 1.64626,
+    "sigma_right": 2.90287
+  },
+  {
+    "checkpoint_id": "s04_acc073700_l033876_r724299",
+    "source_model": "Llama-3-8B",
+    "source_dataset": "OASST1",
+    "source_accuracy": 0.737,
+    "sigma_left": 0.33876,
+    "sigma_right": 7.24299
+  },
+  {
+    "checkpoint_id": "s05_acc076675_l041553_r346115",
+    "source_model": "Llama-3-8B",
+    "source_dataset": "OASST1",
+    "source_accuracy": 0.76675,
+    "sigma_left": 0.41553,
+    "sigma_right": 3.46115
+  },
+  {
+    "checkpoint_id": "s06_acc073946_l024343_r415541",
+    "source_model": "Llama-3-8B",
+    "source_dataset": "OASST1",
+    "source_accuracy": 0.73946,
+    "sigma_left": 0.24343,
+    "sigma_right": 4.15541
+  }
+]

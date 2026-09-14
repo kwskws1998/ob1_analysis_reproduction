@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+assets/archives/
+cache/
+data/raw/
+data/processed/
+data/ob1_runtime/
+models/
+outputs/
+third_party/

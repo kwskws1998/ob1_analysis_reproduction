@@ -1,0 +1,14 @@
+{
+  "comparison_design": "trajectory_matched_skew3_and_skew4",
+  "metric_absolute_tolerance": 1e-6,
+  "passages": 55,
+  "evaluable_words": 2686,
+  "excluded_positions": 59,
+  "et1_token_rows": 3715,
+  "checkpoints": 6,
+  "seeds": 100,
+  "python_hash_seed": 20260725,
+  "skew3_fixation_rows": 275032,
+  "skew4_fixation_rows": 279109,
+  "tokenizer_fingerprint": "6c35f9d94fd73e53bf310f4d915700caff73e01912f16ee38cddea5fec977341"
+}

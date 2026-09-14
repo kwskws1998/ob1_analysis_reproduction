@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "assets": {
+    "provo_eye_tracking": {
+      "source": "https://osf.io/download/a32be/",
+      "landing_page": "https://osf.io/sjefs/",
+      "revision": null,
+      "destination": "data/raw/Provo_Corpus-Eyetracking_Data.csv",
+      "bytes": 69662713,
+      "sha256": "38aedcb29bc9171009916eb2bcc2375729f104a2a1005c64a563da94b611b9e7",
+      "license": "CC BY 4.0"
+    },
+    "provo_predictability": {
+      "source": "https://osf.io/download/e4a2m/",
+      "landing_page": "https://osf.io/sjefs/",
+      "revision": null,
+      "destination": "data/raw/Provo_Corpus-Predictability_Norms.csv",
+      "bytes": 14301138,
+      "sha256": "965fb72eab55f51e08fc1b5622638b85b1085976ff513e2a7bee4adbbd4e6489",
+      "license": "CC BY 4.0"
+    },
+    "ob1_provo_2024": {
+      "source": "https://github.com/dritlopes/language_models_outperform_cloze_predictability_in_a_cognitive_model_of_reading/archive/56b8d6401d1c2c1886a9c6ff9df4a143c6f2c12d.tar.gz",
+      "landing_page": "https://github.com/dritlopes/language_models_outperform_cloze_predictability_in_a_cognitive_model_of_reading",
+      "archive_destination": "assets/archives/ob1_reader_provo_2024_56b8d640.tar.gz",
+      "extract_destination": "third_party/ob1_reader_provo_2024",
+      "commit": "56b8d6401d1c2c1886a9c6ff9df4a143c6f2c12d",
+      "revision": "56b8d6401d1c2c1886a9c6ff9df4a143c6f2c12d",
+      "bytes": 55660,
+      "sha256": "beb9c571c2264f8382fd24a9a5147ed3c7e67a7774d1414e24ba46a5ffb61b1e",
+      "tree_files": 22,
+      "tree_sha256": "e75429b55f15eda7b6d8b57df6b772be9ad3c480e23cd43dc61b4c62a6597214",
+      "license": null
+    },
+    "subtlex_uk": {
+      "source": "https://psychology.nottingham.ac.uk/subtlex-uk/SUBTLEX-UK.txt.zip",
+      "landing_page": "https://psychology.nottingham.ac.uk/subtlex-uk/",
+      "revision": null,
+      "archive_destination": "assets/archives/SUBTLEX-UK.txt.zip",
+      "archive_member": "SUBTLEX-UK.txt",
+      "extract_destination": "data/raw/SUBTLEX_UK.txt",
+      "bytes": 3488497,
+      "sha256": "e40d83af55eb85e9e2bc0d72e1022b10e47e31ff2086ad2edcc18292d6bd6616",
+      "extracted_bytes": 18218234,
+      "extracted_sha256": "9cc02e83efce5c606606578122b792e364dcee52799115218f2cfd596e0fe0f3",
+      "license": null
+    },
+    "et1_checkpoint": {
+      "source": "https://raw.githubusercontent.com/huangxt39/SelectiveCacheForLM/eccc93f969745b04ce1e4911d6513d85565cc919/FPmodels/T5-tokenizer-BiLSTM-TRT-12-concat-3",
+      "landing_page": "https://github.com/huangxt39/SelectiveCacheForLM/tree/eccc93f969745b04ce1e4911d6513d85565cc919",
+      "destination": "models/T5-tokenizer-BiLSTM-TRT-12-concat-3",
+      "repository": "huangxt39/SelectiveCacheForLM",
+      "commit": "eccc93f969745b04ce1e4911d6513d85565cc919",
+      "revision": "eccc93f969745b04ce1e4911d6513d85565cc919",
+      "bytes": 70144951,
+      "sha256": "f872e426de7a2a5473f096f1576df9e912efef71e33c5e4a664cabe84c6baa03"
+    },
+    "et1_tokenizer": {
+      "repository": "t5-small",
+      "revision": "df1b051c49625cf57a3d0d8d3863ed4d13564fe4",
+      "bytes": 2183333,
+      "files_sha256": "c1c0397291ec8ede77797408b2cb36414bf5abf7018565db0b9ed1cdecabf6f1",
+      "files": [
+        {
+          "source": "https://huggingface.co/t5-small/resolve/df1b051c49625cf57a3d0d8d3863ed4d13564fe4/spiece.model",
+          "destination": "models/t5_tokenizer/spiece.model",
+          "bytes": 791656,
+          "sha256": "d60acb128cf7b7f2536e8f38a5b18a05535c9e14c7a355904270e15b0945ea86"
+        },
+        {
+          "source": "https://huggingface.co/t5-small/resolve/df1b051c49625cf57a3d0d8d3863ed4d13564fe4/tokenizer.json",
+          "destination": "models/t5_tokenizer/tokenizer.json",
+          "bytes": 1389353,
+          "sha256": "d2acde0d8d71dd30a711834b07781b9c89feaac33fd332f60507699282740066"
+        },
+        {
+          "source": "https://huggingface.co/t5-small/resolve/df1b051c49625cf57a3d0d8d3863ed4d13564fe4/tokenizer_config.json",
+          "destination": "models/t5_tokenizer/tokenizer_config.json",
+          "bytes": 2324,
+          "sha256": "d1e7146101aa96282057f374aa9c3b260fba2109e5990edb1775d6efc70ffa3c"
+        }
+      ],
+      "fingerprint": "6c35f9d94fd73e53bf310f4d915700caff73e01912f16ee38cddea5fec977341"
+    }
+  }
+}
