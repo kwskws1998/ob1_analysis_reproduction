@@ -14,7 +14,14 @@ def tokenizer_fingerprint(tokenizer) -> str:
 
     backend_tokenizer = getattr(tokenizer, "backend_tokenizer", None)
     if backend_tokenizer is not None and hasattr(backend_tokenizer, "to_str"):
-        backend_state = backend_tokenizer.to_str()
+        backend_payload = json.loads(backend_tokenizer.to_str())
+        backend_payload["padding"] = None
+        backend_payload["truncation"] = None
+        backend_state = json.dumps(
+            backend_payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
     else:
         vocabulary = tokenizer.get_vocab()
         backend_state = json.dumps(

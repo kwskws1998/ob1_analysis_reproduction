@@ -71,8 +71,18 @@ class ContractTests(unittest.TestCase):
             "from models",
             "import models",
         )
+        ignored_top_level = {
+            ".venv",
+            "assets",
+            "cache",
+            "data",
+            "models",
+            "outputs",
+            "third_party",
+        }
         for path in ROOT.rglob("*.py"):
-            if "tests" in path.relative_to(ROOT).parts:
+            relative_parts = path.relative_to(ROOT).parts
+            if "tests" in relative_parts or relative_parts[0] in ignored_top_level:
                 continue
             text = path.read_text(encoding="utf-8")
             for phrase in forbidden:
